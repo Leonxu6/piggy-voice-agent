@@ -41,29 +41,68 @@ class TaskExecutor:
             return await self.execute_general(description)
     
     async def execute_search(self, query: str) -> dict:
-        """Execute a web search"""
+        """Execute a web search using multiple sources"""
         try:
-            # Using DuckDuckGo
-            url = "https://api.duckduckgo.com/"
-            params = {
-                "q": query,
-                "format": "json",
-                "no_html": 1
-            }
-            resp = requests.get(url, params=params, timeout=10)
-            data = resp.json()
+            from urllib.parse import quote
+            import re
+            import json
             
-            results = []
-            for topic in data.get("RelatedTopics", [])[:5]:
-                if "Text" in topic:
-                    results.append(topic["Text"])
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/html',
+            }
+            
+            all_results = []
+            
+            # Source 1: HackerNews
+            try:
+                hn_url = f'https://hn.algolia.com/api/v1/search?query={quote(query)}&tags=story&hitsPerPage=5'
+                hn_resp = requests.get(hn_url, headers=headers, timeout=8)
+                hn_data = hn_resp.json()
+                for hit in hn_data.get('hits', [])[:3]:
+                    title = hit.get('title', '')
+                    url = hit.get('url', '')
+                    if title:
+                        all_results.append(f"📰 {title}")
+                        if url:
+                            all_results.append(f"   🔗 {url[:80]}")
+            except Exception as e:
+                pass
+            
+            # Source 2: Reddit (via pushshift)
+            try:
+                reddit_url = f'https://api.pushshift.io/reddit/search/submission/?q={quote(query)}&size=3&sort=desc&sort_type=score'
+                reddit_resp = requests.get(reddit_url, headers=headers, timeout=8)
+                reddit_data = reddit_resp.json()
+                for post in reddit_data.get('data', [])[:3]:
+                    title = post.get('title', '')
+                    score = post.get('score', 0)
+                    if title:
+                        all_results.append(f"💬 {title} (↑{score})")
+            except Exception:
+                pass
+            
+            # Source 3: Direct Google News
+            try:
+                news_url = f'https://news.google.com/rss/search?q={quote(query)}&hl=en-US&gl=US&ceid=US:en'
+                news_resp = requests.get(news_url, headers=headers, timeout=8)
+                # Parse RSS
+                titles = re.findall(r'<title><!\[CDATA\[([^\]]+)\]\]></title>', news_resp.text)
+                for title in titles[1:6]:  # Skip first (search term itself)
+                    if title and title != query:
+                        all_results.append(f"📰 {title}")
+            except Exception:
+                pass
+            
+            if not all_results:
+                all_results = [f"关于「{query}」的搜索结果（来源受限，建议直接访问网站获取完整信息）"]
             
             return {
                 "status": "success",
                 "type": "search",
                 "query": query,
-                "results": results,
-                "summary": data.get("Heading", "")[:100]
+                "results": all_results[:10],
+                "summary": f"找到 {len(all_results)} 条相关信息"
             }
         except Exception as e:
             return {"status": "error", "type": "search", "error": str(e)}
