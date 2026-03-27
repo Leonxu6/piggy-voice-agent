@@ -28,7 +28,7 @@ Every day, professionals need to research topics:
 Piggy 做的:
 1. 🎤 语音 → 文字
 2. 🔍 多源搜索 (HackerNews + Reddit + News)
-3. 📖 读取相关文章
+3. 📖 读取原文 (Deep Reading)
 4. 🧠 LLM 分析整合
 5. 🎤 语音报告结果
 
@@ -42,7 +42,8 @@ Piggy 做的:
 - 📖 **Deep Reading** — 读取原文，不只是摘要
 - 🧠 **Smart Synthesis** — LLM 分析，不是简单的搜索结果堆砌
 - 🎤 **Voice Report** — 走路、开车、健身都能听
-- 💾 **Memory** — 记住你的偏好和之前的research
+- 💾 **Memory** — 记住你的偏好和之前的 research
+- 📈 **Real-time Progress** — 研究过程实时推送状态，不让你干等
 
 ## 💰 Use Cases
 
@@ -73,10 +74,40 @@ Voice Report (TTS)
 ## 🔧 Tech Stack
 
 - **LLM**: MiniMax M2.7
-- **TTS**: MiniMax speech-2.8-hd
+- **TTS**: MiniMax speech-2.8-hd (Warm Girl voice)
 - **STT**: Google Speech API (free tier)
-- **Search**: HN + Reddit + News + Direct
-- **Memory**: Per-user context
+- **Search**: HackerNews + Reddit + Google News
+- **Memory**: Per-user context + history
+- **HTTP**: httpx (async)
+
+## 🚀 Quick Start
+
+```bash
+# 1. Clone
+git clone https://github.com/Leonxu6/piggy-voice-agent.git
+cd piggy-voice-agent
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Configure
+cp .env.example .env
+# Edit .env with your tokens
+
+# 4. Run
+python main.py
+```
+
+## ⚙️ Configuration
+
+Get your tokens:
+- **Telegram Bot**: https://t.me/BotFather
+- **MiniMax API**: https://platform.minimax.io
+
+```env
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+MINIMAX_API_KEY=your_minimax_api_key_here
+```
 
 ## 📄 License
 
