@@ -19,31 +19,36 @@ MODEL = "speech-2.8-hd"
 
 async def transcribe_voice(voice_file) -> str:
     """
-    Transcribe voice message to text using Telegram's built-in recognition
-    or fallback to placeholder.
-    
-    Telegram voice messages have duration limit of 5MB audio.
+    Transcribe voice message to text using SpeechRecognition
     """
+    import speech_recognition as sr
+    import tempfile
+    
     try:
         # Download voice file
         voice_bytes = await voice_file.download_as_bytearray()
+        logger.info(f"Downloaded voice file: {len(voice_bytes)} bytes")
         
-        # Try using speech recognition via HTTP API
-        # For now, we'll use a simple approach with the file
-        
-        # Note: MiniMax doesn't have free STT, using alternative
-        # For production, consider: Whisper API, Google STT, or Vosk
-        
-        # Save to temp file for potential STT processing
-        temp_path = f"/tmp/voice_{voice_file.file_unique_id}.mp3"
+        # Save to temp file (SpeechRecognition needs a file path)
+        temp_path = f"/tmp/voice_{voice_file.file_unique_id}.wav"
         with open(temp_path, "wb") as f:
             f.write(voice_bytes)
         
-        logger.info(f"Downloaded voice file: {len(voice_bytes)} bytes")
+        # Use SpeechRecognition to transcribe
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(temp_path) as source:
+            audio_data = recognizer.record(source)
+            # Try Google Speech Recognition (free tier)
+            text = recognizer.recognize_google(audio_data, language="zh-CN")
+            logger.info(f"Transcription: {text}")
+            return text
         
-        # Return placeholder - in production, integrate with STT API
-        return "[语音消息]"  # Placeholder until STT is integrated
-        
+    except sr.UnknownValueError:
+        logger.warning("Speech recognition could not understand audio")
+        return "[听不清，请再说一遍]"
+    except sr.RequestError as e:
+        logger.error(f"Speech recognition service error: {e}")
+        return "[语音识别服务暂时不可用]"
     except Exception as e:
         logger.error(f"Voice transcription error: {e}")
         return "[语音消息处理失败]"
