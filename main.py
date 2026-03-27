@@ -255,6 +255,95 @@ async def _show_history(update: Update, user_id: str):
         await update.message.reply_text(f"读取历史失败: {str(e)[:100]}")
 
 
+async def _compare_research(update: Update, user_id: str, text: str):
+    """Compare two research results on the same topic"""
+    import json
+
+    research_file = memory.storage_dir / f"{user_id}_research.json"
+    if not research_file.exists():
+        await update.message.reply_text("📜 还没有研究记录，先研究一个话题吧！")
+        return
+
+    with open(research_file, 'r', encoding='utf-8') as f:
+        history = json.load(f)
+
+    if len(history) < 2:
+        await update.message.reply_text(
+            "📜 历史记录不够，无法对比。\n"
+            "请先研究几个不同话题，再试「对比 [话题]」。"
+        )
+        return
+
+    # Find research on the requested topic
+    topic_lower = text.lower().replace('对比', '').replace('compare', '').strip()
+    matches = [h for h in history if topic_lower in h.get('topic', '').lower()]
+
+    if len(matches) < 2:
+        await update.message.reply_text(
+            f"📜 关于「{topic_lower}」的历史记录不够两次。\n"
+            "请先研究几个不同话题，再试「对比 [话题]」。"
+        )
+        return
+
+    # Get two most recent on this topic
+    latest = matches[-1]
+    previous = matches[-2]
+
+    latest_date = latest.get('timestamp', '')[:10]
+    prev_date = previous.get('timestamp', '')[:10]
+
+    msg = (
+        f"📊 **对比：「{latest.get('topic', '')}」研究变化**\n\n"
+        f"上次研究：{prev_date}\n{previous.get('summary', '')[:200]}\n\n"
+        f"最近研究：{latest_date}\n{latest.get('summary', '')[:200]}\n\n"
+        f"---\n💡 要获取最新完整报告，请说「研究 {latest.get('topic', '')}」"
+    )
+    await update.message.reply_text(msg[:4000], parse_mode='Markdown')
+
+
+async def _set_briefing(update: Update, user_id: str, text: str):
+    """Set daily briefing topic"""
+    topic = text.replace('每日简报', '').replace('briefing', '').replace('设置', '').strip()
+    if not topic:
+        await update.message.reply_text(
+            "📅 设置每日简报：\n「每日简报 [话题]」\n\n"
+            "例如：「每日简报 AI行业动态」\n\n"
+            "每天早上8点会自动研究这个话题并语音推送。"
+        )
+        return
+
+    memory.set_user_preference(user_id, 'daily_briefing_topic', topic)
+    memory.set_user_preference(user_id, 'daily_briefing_time', '08:00')
+    await update.message.reply_text(
+        f"✅ 每日简报已设置：*{topic}*\n"
+        "📅 每天早上8点自动研究并语音推送\n\n"
+        "查看当前设置：「我的简报」\n"
+        "取消：「取消简报」"
+    )
+
+
+async def _get_briefing(update: Update, user_id: str):
+    """Get current briefing settings"""
+    info = memory.get_user_info(user_id)
+    prefs = info.get('preferences', {})
+    topic = prefs.get('daily_briefing_topic', '')
+    time = prefs.get('daily_briefing_time', '08:00')
+
+    if not topic:
+        await update.message.reply_text(
+            "📅 还没有设置每日简报\n\n"
+            "「每日简报 [话题]」- 设置话题\n"
+            "例如：「每日简报 AI行业动态」"
+        )
+        return
+
+    await update.message.reply_text(
+        f"📅 当前简报：*{topic}*\n"
+        f"⏰ 推送时间：每天 {time}\n\n"
+        "说「取消简报」来关闭。"
+    )
+
+
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle errors"""
     logger.error(f"Telegram error: {context.error}")
