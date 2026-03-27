@@ -40,12 +40,12 @@ logger = logging.getLogger(__name__)
 # Telegram
 from telegram import Update
 from telegram.ext import (
-    Application, CommandHandler, MessageHandler,
-    VoiceHandler, filters, ContextTypes, Defaults
+    Application, CommandHandler, MessageHandler, 
+    filters, ContextTypes, Defaults
 )
 
 # Piggy modules
-from voice_handler import VoiceHandler
+from voice_handler import VoiceProcessor
 from llm_client import LLMClient
 from search_engine import SearchEngine
 from memory import Memory
@@ -57,7 +57,7 @@ llm = LLMClient()
 search = SearchEngine()
 memory = Memory()
 researcher = ResearchAgent(llm, search, memory)
-voice = VoiceHandler(llm)
+voice = VoiceProcessor(llm)
 
 logger.info("✅ All modules initialized")
 
@@ -65,13 +65,13 @@ logger.info("✅ All modules initialized")
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Welcome message"""
     await update.message.reply_text(
-        "🐷 你好！我是 Piggy，你的语音研究助手。\n\n"
-        "我可以帮你研究任何话题——行业动态、竞品分析、技术趋势...\n\n"
-        "只需要说：\n"
+        "🐷 你好!我是 Piggy,你的语音研究助手。\n\n"
+        "我可以帮你研究任何话题--行业动态、竞品分析、技术趋势...\n\n"
+        "只需要说:\n"
         "• \"研究 Tesla 竞品\"\n"
         "• \"帮我了解 AI 最新进展\"\n"
         "• \"研究某个投资机会\"\n\n"
-        "我说完就开始研究，1-2分钟后用语音报告结果。"
+        "我说完就开始研究,1-2分钟后用语音报告结果。"
     )
 
 
@@ -116,17 +116,17 @@ async def _do_research(
         summary_lines.append(result.summary[:500])
 
         if result.key_findings:
-            summary_lines.append("\n🔍 **关键发现：**")
+            summary_lines.append("\n🔍 **关键发现:**")
             for f in result.key_findings[:5]:
                 summary_lines.append(f"• {f[:200]}")
 
         if result.recommendations:
-            summary_lines.append("\n💡 **建议：**")
+            summary_lines.append("\n💡 **建议:**")
             for r in result.recommendations[:3]:
                 summary_lines.append(f"• {r[:200]}")
 
         if result.sources:
-            summary_lines.append("\n📚 **主要来源：**")
+            summary_lines.append("\n📚 **主要来源:**")
             for src in result.sources[:5]:
                 # Shorten display
                 display = src if len(src) <= 50 else src[:47] + "..."
@@ -159,7 +159,7 @@ async def research_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await update.message.reply_text(f"🎤 收到，开始深度研究: **{topic}**", parse_mode='Markdown')
+    await update.message.reply_text(f"🎤 收到,开始深度研究: **{topic}**", parse_mode='Markdown')
     await _do_research(update, topic, user_id)
 
 
@@ -169,14 +169,14 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         # Transcribe voice
-        await update.message.reply_text("🎤 收到语音，正在转录...")
+        await update.message.reply_text("🎤 收到语音,正在转录...")
 
         topic = await voice.transcribe(update.message.voice)
 
         if not topic or topic == "[语音消息]" or "[听不清" in topic:
             await update.message.reply_text(
-                "抱歉，我没听清楚，请再说一遍？\n"
-                "或者直接打字：研究 [话题]"
+                "抱歉,我没听清楚,请再说一遍?\n"
+                "或者直接打字:研究 [话题]"
             )
             return
 
@@ -204,7 +204,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"🎤 开始研究: **{topic}**", parse_mode='Markdown')
             await _do_research(update, topic, user_id)
         else:
-            await update.message.reply_text("请说要研究什么话题～\n例如：研究 Tesla 竞品")
+            await update.message.reply_text("请说要研究什么话题~\n例如:研究 Tesla 竞品")
         return
 
     # Special commands
@@ -218,12 +218,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Default - friendly redirect
     await update.message.reply_text(
-        "🐷 我是研究助手，不是聊天机器人哦~\n\n"
-        "试试这样说：\n"
+        "🐷 我是研究助手,不是聊天机器人哦~\n\n"
+        "试试这样说:\n"
         "• 研究 Tesla 最近的负面新闻\n"
         "• 帮我了解 AI Agent 最新进展\n"
         "• 分析苹果公司的竞争格局\n\n"
-        "或者直接发语音告诉我你想研究什么！"
+        "或者直接发语音告诉我你想研究什么!"
     )
 
 
@@ -233,17 +233,17 @@ async def _show_history(update: Update, user_id: str):
         import json
         research_file = memory.storage_dir / f"{user_id}_research.json"
         if not research_file.exists():
-            await update.message.reply_text("还没有研究记录～说个话题开始吧！")
+            await update.message.reply_text("还没有研究记录~说个话题开始吧!")
             return
 
         with open(research_file, 'r', encoding='utf-8') as f:
             history = json.load(f)
 
         if not history:
-            await update.message.reply_text("还没有研究记录～说个话题开始吧！")
+            await update.message.reply_text("还没有研究记录~说个话题开始吧!")
             return
 
-        lines = ["📜 **研究历史**（最近5条）：\n"]
+        lines = ["📜 **研究历史**(最近5条):\n"]
         for item in history[-5:]:
             topic = item.get('topic', '')
             ts = item.get('timestamp', '')[:10]
@@ -261,7 +261,7 @@ async def _compare_research(update: Update, user_id: str, text: str):
 
     research_file = memory.storage_dir / f"{user_id}_research.json"
     if not research_file.exists():
-        await update.message.reply_text("📜 还没有研究记录，先研究一个话题吧！")
+        await update.message.reply_text("📜 还没有研究记录,先研究一个话题吧!")
         return
 
     with open(research_file, 'r', encoding='utf-8') as f:
@@ -269,8 +269,8 @@ async def _compare_research(update: Update, user_id: str, text: str):
 
     if len(history) < 2:
         await update.message.reply_text(
-            "📜 历史记录不够，无法对比。\n"
-            "请先研究几个不同话题，再试「对比 [话题]」。"
+            "📜 历史记录不够,无法对比。\n"
+            "请先研究几个不同话题,再试「对比 [话题]」。"
         )
         return
 
@@ -281,7 +281,7 @@ async def _compare_research(update: Update, user_id: str, text: str):
     if len(matches) < 2:
         await update.message.reply_text(
             f"📜 关于「{topic_lower}」的历史记录不够两次。\n"
-            "请先研究几个不同话题，再试「对比 [话题]」。"
+            "请先研究几个不同话题,再试「对比 [话题]」。"
         )
         return
 
@@ -293,10 +293,10 @@ async def _compare_research(update: Update, user_id: str, text: str):
     prev_date = previous.get('timestamp', '')[:10]
 
     msg = (
-        f"📊 **对比：「{latest.get('topic', '')}」研究变化**\n\n"
-        f"上次研究：{prev_date}\n{previous.get('summary', '')[:200]}\n\n"
-        f"最近研究：{latest_date}\n{latest.get('summary', '')[:200]}\n\n"
-        f"---\n💡 要获取最新完整报告，请说「研究 {latest.get('topic', '')}」"
+        f"📊 **对比:「{latest.get('topic', '')}」研究变化**\n\n"
+        f"上次研究:{prev_date}\n{previous.get('summary', '')[:200]}\n\n"
+        f"最近研究:{latest_date}\n{latest.get('summary', '')[:200]}\n\n"
+        f"---\n💡 要获取最新完整报告,请说「研究 {latest.get('topic', '')}」"
     )
     await update.message.reply_text(msg[:4000], parse_mode='Markdown')
 
@@ -306,8 +306,8 @@ async def _set_briefing(update: Update, user_id: str, text: str):
     topic = text.replace('每日简报', '').replace('briefing', '').replace('设置', '').strip()
     if not topic:
         await update.message.reply_text(
-            "📅 设置每日简报：\n「每日简报 [话题]」\n\n"
-            "例如：「每日简报 AI行业动态」\n\n"
+            "📅 设置每日简报:\n「每日简报 [话题]」\n\n"
+            "例如:「每日简报 AI行业动态」\n\n"
             "每天早上8点会自动研究这个话题并语音推送。"
         )
         return
@@ -315,10 +315,10 @@ async def _set_briefing(update: Update, user_id: str, text: str):
     memory.set_user_preference(user_id, 'daily_briefing_topic', topic)
     memory.set_user_preference(user_id, 'daily_briefing_time', '08:00')
     await update.message.reply_text(
-        f"✅ 每日简报已设置：*{topic}*\n"
+        f"✅ 每日简报已设置:*{topic}*\n"
         "📅 每天早上8点自动研究并语音推送\n\n"
-        "查看当前设置：「我的简报」\n"
-        "取消：「取消简报」"
+        "查看当前设置:「我的简报」\n"
+        "取消:「取消简报」"
     )
 
 
@@ -333,13 +333,13 @@ async def _get_briefing(update: Update, user_id: str):
         await update.message.reply_text(
             "📅 还没有设置每日简报\n\n"
             "「每日简报 [话题]」- 设置话题\n"
-            "例如：「每日简报 AI行业动态」"
+            "例如:「每日简报 AI行业动态」"
         )
         return
 
     await update.message.reply_text(
-        f"📅 当前简报：*{topic}*\n"
-        f"⏰ 推送时间：每天 {time}\n\n"
+        f"📅 当前简报:*{topic}*\n"
+        f"⏰ 推送时间:每天 {time}\n\n"
         "说「取消简报」来关闭。"
     )
 
@@ -348,7 +348,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle errors"""
     logger.error(f"Telegram error: {context.error}")
     if update and update.message:
-        await update.message.reply_text("出错了，请重试～")
+        await update.message.reply_text("出错了,请重试~")
 
 
 def main():
@@ -361,17 +361,16 @@ def main():
     app = (
         Application.builder()
         .token(BOT_TOKEN)
-        .defaults(Defaults(blocking_update_level=1))
         .build()
     )
 
     # Add handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("research", research_command))
-    app.add_handler(CommandHandler("研究", research_command))
+    # app.add_handler(CommandHandler("研究", research_command))  # Unicode not allowed in Telegram commands
     app.add_handler(CommandHandler("help", handle_text))
     app.add_handler(CommandHandler("history", _show_history))
-    app.add_handler(VoiceHandler(filters.VOICE, handle_voice))
+    app.add_handler(MessageHandler(filters.VOICE, handle_voice))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     app.add_error_handler(error_handler)
 

@@ -66,7 +66,7 @@ def chunk_text(text: str, max_chars: int = TTS_CHUNK_SIZE) -> list:
     return [c for c in chunks if c]
 
 
-class VoiceHandler:
+class VoiceProcessor:
     """Handles STT and TTS using async httpx"""
 
     def __init__(self, llm_client):
