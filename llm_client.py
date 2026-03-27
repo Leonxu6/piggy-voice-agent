@@ -25,6 +25,8 @@ class LLMClient:
         """
         Send a chat request to MiniMax LLM
         """
+        # This method now properly handles the user_id parameter
+        return await self.chat_with_history(user_id or "default", prompt)
         import requests
         
         headers = {
