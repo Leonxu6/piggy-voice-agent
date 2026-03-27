@@ -1,0 +1,7 @@
+# Core
+python-telegram-bot>=20.0
+python-dotenv>=1.0.0
+requests>=2.28.0
+
+# Optional: For better voice processing
+# openai>=1.0.0  # For Whisper STT (if using OpenAI)
