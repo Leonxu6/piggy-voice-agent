@@ -12,13 +12,13 @@ Every day, professionals need to research topics:
 - "帮我了解某项技术"
 
 **Current options all suck:**
-- Google → 信息太多太杂，要花几小时
-- ChatGPT → 只知道训练数据，没有最新信息
-- Perplexity → 好，但只能文字，不能语音
-- Siri/Alexa → 玩具，只能答简单问题
+- Google → 信息太多太杂,要花几小时
+- ChatGPT → 只知道训练数据,没有最新信息
+- Perplexity → 好,但只能文字,不能语音
+- Siri/Alexa → 玩具,只能答简单问题
 
 **Piggy solves this:**
-你说一个话题，Piggy 真正去研究它，用语音报告结果。
+你说一个话题,Piggy 真正去研究它,用语音报告结果。
 
 ## 💡 What Piggy Does
 
@@ -27,20 +27,21 @@ Every day, professionals need to research topics:
 
 Piggy 做的:
 1. 🎤 语音 → 文字
-2. 🔍 多源搜索 (HackerNews + Reddit + News)
-3. 📖 读取原文 (Deep Reading)
-4. 🧠 LLM 分析整合
+2. 🔍 多源搜索 (HackerNews + Reddit + News + 知乎 + 微博 + 百度新闻)
+3. 📖 深度分析搜索摘要 (LLM)
+4. 🧠 可信度评估 + 综合报告
 5. 🎤 语音报告结果
 
-整个过程 1-2 分钟，你在做别的事
+整个过程 1-2 分钟,你在做别的事
 ```
 
 ## 📊 Features
 
 - 🎤 **Voice First** — 说话就能用，不用打字
 - 🔍 **Real Research** — 真正去网上搜索，不是瞎编
-- 📖 **Deep Reading** — 读取原文，不只是摘要
-- 🧠 **Smart Synthesis** — LLM 分析，不是简单的搜索结果堆砌
+- 🇨🇳 **CN + EN Sources** — 知乎、微博、百度新闻 + HackerNews + Reddit + News
+- 🧠 **Smart Synthesis** — LLM 综合分析，发现关联和趋势
+- ✅ **Credibility Scoring** — 信息可信度分级，避免被垃圾信息误导
 - 🎤 **Voice Report** — 走路、开车、健身都能听
 - 💾 **Memory** — 记住你的偏好和之前的 research
 - 📈 **Real-time Progress** — 研究过程实时推送状态，不让你干等
@@ -76,9 +77,9 @@ Voice Report (TTS)
 - **LLM**: MiniMax M2.7
 - **TTS**: MiniMax speech-2.8-hd (Warm Girl voice)
 - **STT**: Google Speech API (free tier)
-- **Search**: HackerNews + Reddit + Google News
+- **Search**: HackerNews + Reddit + Google News + 知乎 + 微博 + 百度新闻
 - **Memory**: Per-user context + history
-- **HTTP**: httpx (async)
+- **HTTP**: httpx (fully async)
 
 ## 🚀 Quick Start
 
