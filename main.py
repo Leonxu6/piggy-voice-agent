@@ -1,6 +1,6 @@
 """
-Piggy Voice AI Agent - Main Entry Point v2
-Improved version with better error handling and logging
+Piggy Voice Research Agent - Main Entry Point
+Voice in, research, voice out.
 """
 
 import os
@@ -8,38 +8,28 @@ import sys
 import asyncio
 import logging
 from pathlib import Path
-from dotenv import load_dotenv
 
-# Load environment
+# Setup
+from dotenv import load_dotenv
 load_dotenv()
 
-# Check required env vars
+# Check env
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not BOT_TOKEN:
-    print("❌ TELEGRAM_BOT_TOKEN not set in .env")
-    print("   Get one from https://t.me/BotFather")
+    print("❌ Missing TELEGRAM_BOT_TOKEN")
+    print("   Get from: https://t.me/BotFather")
     sys.exit(1)
 
 MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY")
 if not MINIMAX_API_KEY:
-    print("❌ MINIMAX_API_KEY not set in .env")
-    print("   Get one from https://platform.minimax.io")
+    print("❌ Missing MINIMAX_API_KEY")
+    print("   Get from: https://platform.minimax.io")
     sys.exit(1)
-
-# Import after env check
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, VoiceHandler, filters, ContextTypes
-
-# Import our modules
-from voice_handler import process_voice_message, send_voice_message
-from llm_client import LLMClient
-from task_executor import TaskExecutor
-from memory import Memory
 
 # Configure logging
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('piggy.log'),
         logging.StreamHandler()
@@ -47,122 +37,136 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize modules
+# Telegram
+from telegram import Update
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler, 
+    VoiceHandler, filters, ContextTypes, Defaults
+)
+
+# Piggy modules
+from voice_handler import VoiceHandler
+from llm_client import LLMClient
+from search_engine import SearchEngine
+from memory import Memory
+from research_agent import ResearchAgent
+
+# Initialize
+logger.info("🐷 Initializing Piggy...")
 llm = LLMClient()
-executor = TaskExecutor()
+search = SearchEngine()
 memory = Memory()
+researcher = ResearchAgent(llm, search, memory)
+voice = VoiceHandler(llm)
 
-logger.info("🐷 Piggy Voice AI Agent Starting...")
+logger.info("✅ All modules initialized")
 
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command"""
-    user_name = update.message.from_user.first_name
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Welcome message"""
     await update.message.reply_text(
-        f"🐷 你好 {user_name}！我是 Piggy，你的语音 AI 助手。\n\n"
-        f"发语音给我，或者直接打字，我会帮你完成任务！\n\n"
-        f"示例：\n"
-        f"• '搜索最新的 AI 新闻'\n"
-        f"• '研究竞品分析'\n"
-        f"• '帮我写个 Python 脚本'\n\n"
-        f"我可以用语音回复你～"
+        "🐷 你好！我是 Piggy，你的语音研究助手。\n\n"
+        "我可以帮你研究任何话题——行业动态、竞品分析、技术趋势...\n\n"
+        "只需要说：\n"
+        "• \"研究 Tesla 竞品\"\n"
+        "• \"帮我了解 AI 最新进展\"\n"
+        "• \"研究某个投资机会\"\n\n"
+        "我说完就开始研究，1-2分钟后用语音报告结果。"
     )
-    logger.info(f"New user started: {user_name}")
 
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /help command"""
-    await update.message.reply_text(
-        "🐷 Piggy 使用指南：\n\n"
-        "🎤 语音消息 — 我会听你的指令并用语音回复\n"
-        "📝 文字消息 — 直接打字也可以\n\n"
-        "我能帮你：\n"
-        "• 🔍 网络搜索和研究\n"
-        "• 💻 写代码、调试、review\n"
-        "• 📊 市场分析和竞品研究\n"
-        "• 🌐 网页内容抓取\n"
-        "• 🧠 任何你需要的信息\n\n"
-        "有需求尽管说！"
-    )
+async def research_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle research requests"""
+    user_id = str(update.message.from_user.id)
+    text = update.message.text
+    
+    # Extract topic (remove /research or 研究)
+    topic = text.replace('/research', '').replace('研究', '').strip()
+    
+    if not topic:
+        await update.message.reply_text(
+            "请告诉我你想研究什么话题。\n"
+            "例如: /research Tesla 竞品分析"
+        )
+        return
+    
+    # Acknowledge
+    await update.message.reply_text(f"🎤 收到，开始研究: {topic}")
+    
+    # Do research
+    try:
+        result = await researcher.research(topic, user_id)
+        
+        # Format for voice
+        voice_report = researcher.format_for_voice(result)
+        
+        # Send text summary
+        summary = f"📊 研究完成: {topic}\n\n{result.summary}"
+        if result.key_findings:
+            summary += "\n\n关键发现:"
+            for f in result.key_findings:
+                summary += f"\n• {f}"
+        
+        await update.message.reply_text(summary)
+        
+        # Send voice report
+        await voice.send_voice(voice_report, update)
+        
+    except Exception as e:
+        logger.error(f"Research error: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ 研究失败: {str(e)[:100]}")
 
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle incoming voice messages"""
+    """Handle voice input"""
+    user_id = str(update.message.from_user.id)
+    
     try:
-        user_id = update.message.from_user.id
-        user_name = update.message.from_user.first_name
+        # Transcribe voice
+        await update.message.reply_text("🎤 收到语音，正在转录...")
         
-        logger.info(f"Voice from {user_name} (ID: {user_id})")
+        topic = await voice.transcribe(update.message.voice)
         
-        # Send "thinking" message
-        thinking_msg = await update.message.reply_text("🎤 收到，让我处理一下...")
+        if not topic or topic == "[语音消息]":
+            await update.message.reply_text("抱歉，我没听清楚，请再说一遍？")
+            return
         
-        # Process voice → text → LLM → action → TTS response
-        result = await process_voice_message(
-            update=update,
-            llm=llm,
-            executor=executor,
-            memory=memory,
-            user_id=user_id
-        )
+        await update.message.reply_text(f"🎤 听到了: {topic}")
         
-        # Delete thinking message
-        await thinking_msg.delete()
+        # Do research
+        result = await researcher.research(topic, user_id)
         
-        # Send text response
-        if result.get('text_summary'):
-            await update.message.reply_text(result['text_summary'])
+        # Format for voice
+        voice_report = researcher.format_for_voice(result)
         
-        # Send voice response back
-        if result.get('voice_response'):
-            await send_voice_message(update, result['voice_response'], emotion='happy')
+        # Send text summary
+        summary = f"📊 研究完成: {topic}\n\n{result.summary}"
+        await update.message.reply_text(summary)
         
-        logger.info(f"Completed request from {user_name}")
+        # Send voice report
+        await voice.send_voice(voice_report, update)
         
     except Exception as e:
-        logger.error(f"Handle voice error: {e}", exc_info=True)
+        logger.error(f"Voice handle error: {e}", exc_info=True)
         await update.message.reply_text(f"❌ 处理失败: {str(e)[:100]}")
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle incoming text messages"""
-    try:
-        user_id = update.message.from_user.id
-        user_name = update.message.from_user.first_name
-        text = update.message.text
-        
-        logger.info(f"Text from {user_name}: {text[:50]}...")
-        
-        # Send "thinking" indicator
-        thinking_msg = await update.message.reply_text("🤔 处理中...")
-        
-        # Process text → LLM → action → TTS response
-        from main import process_text_message
-        result = await process_text_message(
-            update=update,
-            text=text,
-            llm=llm,
-            executor=executor,
-            memory=memory,
-            user_id=user_id
-        )
-        
-        # Delete thinking message
-        await thinking_msg.delete()
-        
-        # Send text summary
-        if result.get('text_summary'):
-            await update.message.reply_text(result['text_summary'])
-        
-        # Send voice response
-        if result.get('voice_response'):
-            await send_voice_message(update, result['voice_response'], emotion='fluent')
-        
-        logger.info(f"Completed text request from {user_name}")
-        
-    except Exception as e:
-        logger.error(f"Handle text error: {e}", exc_info=True)
-        await update.message.reply_text(f"❌ 处理失败: {str(e)[:100]}")
+    """Handle text input"""
+    user_id = str(update.message.from_user.id)
+    text = update.message.text
+    
+    # Check if it's a research request
+    if any(kw in text.lower() for kw in ['研究', 'research', '了解', '分析']):
+        await research_command(update, context)
+        return
+    
+    # General chat - just respond
+    await update.message.reply_text(
+        "🐷 我是研究助手，不是聊天机器人。\n\n"
+        "请说「研究 [话题]」来开始研究。\n"
+        "例如: 研究 Tesla 竞品分析"
+    )
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -171,34 +175,35 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
-    """Start the bot"""
-    logger.info("🐷 Building Piggy application...")
+    """Start Piggy"""
+    logger.info("=" * 50)
+    logger.info("🐷 Piggy Voice Research Agent Starting...")
+    logger.info("=" * 50)
     
-    try:
-        # Build application
-        app = Application.builder().token(BOT_TOKEN).build()
-        
-        # Add handlers
-        app.add_handler(CommandHandler("start", start_command))
-        app.add_handler(CommandHandler("help", help_command))
-        app.add_handler(VoiceHandler(filters.VOICE, handle_voice))
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-        
-        # Error handler
-        app.add_error_handler(error_handler)
-        
-        logger.info("✅ Piggy ready! Starting polling...")
-        print("=" * 50)
-        print("🐷 Piggy Voice AI Agent is running!")
-        print("=" * 50)
-        print("Send a message to your Telegram bot to start!")
-        
-        # Start polling
-        app.run_polling(allowed_updates=Update.ALL_TYPES)
-        
-    except Exception as e:
-        logger.error(f"Failed to start: {e}")
-        sys.exit(1)
+    # Build app
+    app = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .defaults(Defaults(blocking_update_level=1))
+        .build()
+    )
+    
+    # Add handlers
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("research", research_command))
+    app.add_handler(CommandHandler("研究", research_command))
+    app.add_handler(VoiceHandler(filters.VOICE, handle_voice))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    app.add_error_handler(error_handler)
+    
+    logger.info("✅ Piggy ready!")
+    print("=" * 50)
+    print("🐷 Piggy Voice Research Agent is running!")
+    print("Send a voice or text message to start researching.")
+    print("=" * 50)
+    
+    # Run
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":

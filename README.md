@@ -1,106 +1,87 @@
-# 🐷 Piggy - Voice AI Agent
+# 🐷 Piggy - Voice Research Agent
 
-> Speak to control everything. Your 24/7 AI agent on Telegram.
+> Ask by voice. Piggy researches it. Reports back by voice.
 
-## 🎯 What is Piggy?
+**Not a chatbot. Not a toy. A real research tool that speaks.**
 
-Piggy is a **voice-first AI agent** that listens to you, understands your needs, and actually **gets things done**. Not just chat — real execution.
+## 🎯 The Problem We Solve
 
-You speak to it on Telegram. It speaks back with voice.
+Every day, professionals need to research topics:
+- "研究竞品分析"
+- "最新AI行业动态"
+- "帮我了解某项技术"
 
-## ✨ Features
+**Current options all suck:**
+- Google → 信息太多太杂，要花几小时
+- ChatGPT → 只知道训练数据，没有最新信息
+- Perplexity → 好，但只能文字，不能语音
+- Siri/Alexa → 玩具，只能答简单问题
 
-- 🎤 **Voice-first** — Talk to Piggy, it talks back
-- 🤖 **Actually does things** — Not just chat, but executes tasks
-- 🔍 **Web research** — Multi-source search (HN, Reddit, News)
-- 💻 **Coding assistant** — Writes, reviews, and fixes code
-- 📊 **Deep research** — Comprehensive reports on any topic
-- 🧠 **Self-improving** — Gets smarter over time
-- 💾 **Persistent memory** — Remembers everything
-- 🔄 **Subagent parallelism** — Handles multiple tasks at once
+**Piggy solves this:**
+你说一个话题，Piggy 真正去研究它，用语音报告结果。
 
-## 💰 Pricing
-
-| Plan | Price | Features |
-|------|-------|----------|
-| Free | $0 | 10 requests/day |
-| Pro | $19/mo | Unlimited requests |
-| Team | $49/mo | 5 agents, team features |
-
-**Competitors:** Relsa $39/mo, Angie $29/mo
-
-## 🚀 Quick Start
-
-### 1. Get Required APIs
-
-- **MiniMax API** (LLM + TTS): https://platform.minimax.io
-- **Telegram Bot Token**: https://t.me/BotFather
-
-### 2. Install
-
-```bash
-git clone https://github.com/Leonxu6/piggy-voice-agent.git
-cd piggy-voice-agent
-pip install -r requirements.txt
-```
-
-### 3. Configure
-
-```bash
-cp .env.example .env
-# Edit .env with your API keys
-```
-
-### 4. Run
-
-```bash
-python main.py
-```
-
-## 📱 Usage
-
-Send Piggy a voice message or text on Telegram:
+## 💡 What Piggy Does
 
 ```
-You: "搜索最新的 AI 新闻"
-Piggy: 🎤 [语音回复] "找到了5条关于AI语音代理的最新资讯..."
+你 (语音): "研究 Tesla 的主要竞争对手"
 
-You: "研究一下 Tesla 的竞争对手"
-Piggy: 🎤 [语音回复] "根据研究，特斯拉的主要竞争对手包括..."
+Piggy 做的:
+1. 🎤 语音 → 文字
+2. 🔍 多源搜索 (HackerNews + Reddit + News)
+3. 📖 读取相关文章
+4. 🧠 LLM 分析整合
+5. 🎤 语音报告结果
 
-You: "帮我写个 Python 脚本处理文件"
-Piggy: 🎤 [语音回复] "写好了，脚本已创建..."
+整个过程 1-2 分钟，你在做别的事
 ```
+
+## 📊 Features
+
+- 🎤 **Voice First** — 说话就能用，不用打字
+- 🔍 **Real Research** — 真正去网上搜索，不是瞎编
+- 📖 **Deep Reading** — 读取原文，不只是摘要
+- 🧠 **Smart Synthesis** — LLM 分析，不是简单的搜索结果堆砌
+- 🎤 **Voice Report** — 走路、开车、健身都能听
+- 💾 **Memory** — 记住你的偏好和之前的research
+
+## 💰 Use Cases
+
+| 场景 | 没有 Piggy | 有 Piggy |
+|------|-----------|---------|
+| 开车上班 | 无法研究 | 听研究报告 |
+| 健身时 | 无法阅读 | 听行业分析 |
+| 睡前想了解 | 要花1小时 | 5分钟听完 |
+| 快速了解竞品 | Google太慢 | 直接语音回答 |
 
 ## 🏗️ Architecture
 
 ```
-Telegram Voice/Text
-        ↓
-MiniMax LLM (M2.7) - Understand & Plan
-        ↓
-┌───────┴───────┐
-↓               ↓
-Task Executor  Memory
-(Search/Code)  (Context)
-        ↓
-MiniMax TTS (speech-2.8-hd)
-        ↓
-Voice Response on Telegram
+Voice Input (STT)
+    ↓
+Research Planner (LLM)
+    ↓
+┌────┴────┐
+↓         ↓
+Search   Read
+(10+ sources)  (Pages)
+    ↓
+Synthesize (LLM)
+    ↓
+Voice Report (TTS)
 ```
 
-## 📊 Tech Stack
+## 🔧 Tech Stack
 
 - **LLM**: MiniMax M2.7
-- **TTS**: MiniMax speech-2.8-hd (Chinese Soft Girl voice)
-- **Platform**: Telegram Bot API
-- **Search**: HackerNews + Reddit + Google News
-- **Memory**: Persistent JSON storage
+- **TTS**: MiniMax speech-2.8-hd
+- **STT**: Google Speech API (free tier)
+- **Search**: HN + Reddit + News + Direct
+- **Memory**: Per-user context
 
 ## 📄 License
 
-MIT License
+MIT
 
 ---
 
-*🐷 Built with ❤️ by Piggy AI Agent*
+*Built with ❤️ by Piggy AI*

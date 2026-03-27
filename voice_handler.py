@@ -1,152 +1,123 @@
 """
-Voice Handler - TTS and voice message processing
+Voice Handler - STT and TTS for Piggy
 """
 
 import os
 import asyncio
 import logging
 import io
-from telegram import Update
+import speech_recognition as sr
+
+import requests
 
 logger = logging.getLogger(__name__)
 
-# MiniMax TTS Configuration
-TTS_API_KEY = os.getenv("MINIMAX_TTS_API_KEY", os.getenv("MINIMAX_API_KEY"))
-TTS_API_URL = "https://api.minimaxi.com/v1/t2a_v2"
-VOICE_ID = "Chinese (Mandarin)_Soft_Girl"
-MODEL = "speech-2.8-hd"
+# Config
+MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY")
+TTS_URL = "https://api.minimaxi.com/v1/t2a_v2"
+TTS_MODEL = "speech-2.8-hd"
+TTS_VOICE = "Chinese (Mandarin)_Soft_Girl"
 
 
-async def transcribe_voice(voice_file) -> str:
-    """
-    Transcribe voice message to text using SpeechRecognition
-    """
-    import speech_recognition as sr
-    import tempfile
+class VoiceHandler:
+    """Handles STT and TTS"""
     
-    try:
-        # Download voice file
-        voice_bytes = await voice_file.download_as_bytearray()
-        logger.info(f"Downloaded voice file: {len(voice_bytes)} bytes")
-        
-        # Save to temp file (SpeechRecognition needs a file path)
-        temp_path = f"/tmp/voice_{voice_file.file_unique_id}.wav"
-        with open(temp_path, "wb") as f:
-            f.write(voice_bytes)
-        
-        # Use SpeechRecognition to transcribe
-        recognizer = sr.Recognizer()
-        with sr.AudioFile(temp_path) as source:
-            audio_data = recognizer.record(source)
-            # Try Google Speech Recognition (free tier)
-            text = recognizer.recognize_google(audio_data, language="zh-CN")
-            logger.info(f"Transcription: {text}")
+    def __init__(self, llm_client):
+        self.llm = llm_client
+        self.recognizer = sr.Recognizer()
+    
+    async def transcribe(self, voice) -> str:
+        """
+        Transcribe voice message to text.
+        """
+        try:
+            # Download voice
+            voice_bytes = await voice.get_file().download_as_bytearray()
+            logger.info(f"Downloaded voice: {len(voice_bytes)} bytes")
+            
+            # Save temp file
+            temp_path = f"/tmp/voice_{voice.file_unique_id}.wav"
+            with open(temp_path, "wb") as f:
+                f.write(voice_bytes)
+            
+            # Transcribe
+            loop = asyncio.get_event_loop()
+            
+            def do_recognize():
+                with sr.AudioFile(temp_path) as source:
+                    audio_data = self.recognizer.record(source)
+                    # Try Google Speech (free tier, supports Chinese)
+                    text = self.recognizer.recognize_google(audio_data, language="zh-CN")
+                    return text
+            
+            text = await loop.run_in_executor(None, do_recognize)
+            logger.info(f"Transcribed: {text}")
             return text
-        
-    except sr.UnknownValueError:
-        logger.warning("Speech recognition could not understand audio")
-        return "[听不清，请再说一遍]"
-    except sr.RequestError as e:
-        logger.error(f"Speech recognition service error: {e}")
-        return "[语音识别服务暂时不可用]"
-    except Exception as e:
-        logger.error(f"Voice transcription error: {e}")
-        return "[语音消息处理失败]"
-
-
-async def process_voice_message(update: Update, llm, executor, memory, user_id):
-    """
-    Process incoming voice message:
-    1. Download voice file
-    2. Transcribe to text
-    3. Get LLM response
-    4. Execute tasks if needed
-    5. Generate TTS response
-    """
-    # Get voice file
-    voice_file = await update.message.voice.get_file()
+            
+        except sr.UnknownValueError:
+            logger.warning("Could not understand audio")
+            return "[听不清，请再说一遍]"
+        except Exception as e:
+            logger.error(f"STT error: {e}")
+            return "[语音识别失败]"
     
-    # Transcribe
-    transcription = await transcribe_voice(voice_file)
-    
-    if transcription == "[语音消息]":
-        # Use LLM to respond anyway (it can infer from context)
-        response = await llm.chat(
-            f"用户发送了一条语音消息。请以 Piggy 助手的身份，用简洁友好的方式回应用户。",
-            user_id=user_id
-        )
-    else:
-        # Process the transcription
-        response = await llm.chat(
-            f"用户语音内容：{transcription}",
-            user_id=user_id
-        )
-    
-    return {
-        'voice_response': response,
-        'text_summary': f"🎤 听到了: {transcription[:50]}...",
-        'transcription': transcription
-    }
-
-
-async def send_voice_message(update: Update, text: str, emotion: str = "fluent"):
-    """
-    Send a voice message response using MiniMax TTS
-    """
-    import requests
-    import json
-    
-    headers = {
-        "Authorization": f"Bearer {TTS_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "model": MODEL,
-        "text": text,
-        "stream": False,
-        "output_format": "hex",
-        "voice_setting": {
-            "voice_id": VOICE_ID,
-            "speed": 1,
-            "vol": 1,
-            "pitch": 0,
-            "emotion": emotion
-        },
-        "audio_setting": {
-            "sample_rate": 32000,
-            "bitrate": 128000,
-            "format": "mp3",
-            "channel": 1
-        }
-    }
-    
-    try:
-        # Generate TTS
-        resp = requests.post(TTS_API_URL, headers=headers, json=payload, timeout=30)
-        data = resp.json()
-        
-        if data.get("base_resp", {}).get("status_code") != 0:
-            logger.error(f"TTS API error: {data}")
+    async def send_voice(self, text: str, update, emotion: str = "happy"):
+        """
+        Convert text to speech and send via Telegram.
+        """
+        try:
+            # Generate TTS
+            headers = {
+                "Authorization": f"Bearer {MINIMAX_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": TTS_MODEL,
+                "text": text[:500],  # Limit length
+                "stream": False,
+                "output_format": "hex",
+                "voice_setting": {
+                    "voice_id": TTS_VOICE,
+                    "speed": 1,
+                    "vol": 1,
+                    "pitch": 0,
+                    "emotion": emotion
+                },
+                "audio_setting": {
+                    "sample_rate": 32000,
+                    "bitrate": 128000,
+                    "format": "mp3",
+                    "channel": 1
+                }
+            }
+            
+            loop = asyncio.get_event_loop()
+            
+            def do_tts():
+                resp = requests.post(TTS_URL, headers=headers, json=payload, timeout=30)
+                data = resp.json()
+                
+                if data.get("base_resp", {}).get("status_code") != 0:
+                    raise Exception(f"TTS error: {data}")
+                
+                audio_hex = data["data"]["audio"]
+                return bytes.fromhex(audio_hex)
+            
+            audio_data = await loop.run_in_executor(None, do_tts)
+            
+            # Save temp file
+            temp_path = "/tmp/piggy_voice.mp3"
+            with open(temp_path, "wb") as f:
+                f.write(audio_data)
+            
+            # Send voice
+            with open(temp_path, "rb") as f:
+                await update.message.reply_voice(voice=f)
+            
+            logger.info(f"Sent voice: {text[:30]}...")
+            
+        except Exception as e:
+            logger.error(f"TTS send error: {e}")
             # Fallback to text
-            await update.message.reply_text(text)
-            return
-        
-        audio_hex = data["data"]["audio"]
-        audio_data = bytes.fromhex(audio_hex)
-        
-        # Save temp file
-        temp_path = "/tmp/piggy_voice.mp3"
-        with open(temp_path, "wb") as f:
-            f.write(audio_data)
-        
-        # Send voice message
-        with open(temp_path, "rb") as f:
-            await update.message.reply_voice(voice=f)
-        
-        logger.info(f"发送语音消息成功: {text[:30]}...")
-        
-    except Exception as e:
-        logger.error(f"发送语音失败: {e}")
-        # Fallback to text
-        await update.message.reply_text(text)
+            await update.message.reply_text(f"🎤 {text[:500]}")

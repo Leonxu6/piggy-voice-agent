@@ -77,3 +77,28 @@ class Memory:
         
         with open(self.get_file_path(user_id), "w", encoding="utf-8") as f:
             json.dump(info, f, ensure_ascii=False, indent=2)
+    
+    def add_research(self, user_id: str, topic: str, result):
+        """Save research result for user"""
+        from datetime import datetime
+        file_path = self.storage_dir / f"{user_id}_research.json"
+        
+        research_history = []
+        if file_path.exists():
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    research_history = json.load(f)
+            except:
+                pass
+        
+        research_history.append({
+            "topic": topic,
+            "summary": getattr(result, 'summary', str(result)),
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        # Keep last 50 researches
+        research_history = research_history[-50:]
+        
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(research_history, f, ensure_ascii=False, indent=2)
